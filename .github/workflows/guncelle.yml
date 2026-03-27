@@ -1,0 +1,21 @@
+name: Sifre Botu
+on:
+  repository_dispatch:
+    types: [sifre_degistir]
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Dosyayi Guncelle
+        run: |
+          echo "${{ github.event.client_payload.yeni_sifre }}" > guncel_sifre.txt
+          echo "$(date +'%d.%m.%Y')" > son_guncelleme.txt
+      - name: Commit ve Yukle
+        run: |
+          git config --global user.name "Admin-Bot"
+          git config --global user.email "bot@github.com"
+          git add guncel_sifre.txt son_guncelleme.txt
+          git commit -m "Sifre Guncellendi"
+          git push
+          
