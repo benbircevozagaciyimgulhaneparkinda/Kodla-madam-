@@ -3,39 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>No Attack - Giriş Sistemi</title>
+    <title>No Attack - Dinamik Sistem</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #0f0f0f; color: #00ff41; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1a1a1a; padding: 40px; border-radius: 20px; border: 1px solid #00ff41; box-shadow: 0 0 20px rgba(0, 255, 65, 0.2); text-align: center; width: 320px; }
-        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #00ff41; background: #000; color: #00ff41; box-sizing: border-box; font-family: monospace; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #00ff41; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; text-transform: uppercase; }
-        button:hover { background: #00cc33; box-shadow: 0 0 15px #00ff41; }
-        #sonuc { margin-top: 20px; padding: 15px; border-radius: 10px; background: #000; border: 1px dashed #00ff41; display: none; word-break: break-all; }
+        body { font-family: 'Courier New', Courier, monospace; background: #0a0a0a; color: #00ff00; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #111; padding: 40px; border-radius: 15px; border: 2px solid #00ff00; box-shadow: 0 0 30px rgba(0, 255, 0, 0.3); text-align: center; width: 350px; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 5px; border: 1px solid #00ff00; background: #000; color: #00ff00; box-sizing: border-box; outline: none; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; background: #00ff00; color: #000; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #00cc00; box-shadow: 0 0 15px #00ff00; }
+        #sonuc { margin-top: 20px; padding: 15px; background: #001a00; border: 1px dashed #00ff00; display: none; font-size: 1.2rem; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2 style="letter-spacing: 2px;">SİSTEM ERİŞİMİ</h2>
+    <h2 style="text-shadow: 0 0 10px #00ff00;">SİSTEM ERİŞİMİ</h2>
     <input type="password" id="anahtar" placeholder="ANAHTARI GİRİN...">
-    <button onclick="islemYap()">Sorgula / Güncelle</button>
+    <button onclick="islemYap()">KONTROL ET</button>
     <div id="sonuc"></div>
 </div>
 
 <script>
-// --- BURAYI KENDİ BİLGİLERİNLE DOLDUR DOSTUM ---
-const REPO_OWNER = "benbircevozagaciyimgulhaneparkinda"; // GitHub kullanıcı adın
-const REPO_NAME = "Kodla-madam-"; // Repo adın
+// --- BİLGİLERİN GÜNCELLENDİ DOSTUM ---
+const REPO_OWNER = "benbircevozagaciyimgulhaneparkinda"; 
+const REPO_NAME = "Kodla-madam-"; 
 // ----------------------------------------------
 
 const UYE_KODU = "W4YWEKNMEAWK";
 const ADMIN_KODU = "W4YWEKNMEAWK12";
 
-// Her gün değişen bağımsız şifre
+// Her gün 00:00'da otomatik değişen şifre
 function otomatikSifreUret() {
     const d = new Date();
     const seed = d.getDate() * 12345 + (d.getMonth() + 1) * 6789 + d.getFullYear();
     return Math.abs((seed * 1103515245 + 12345) % 1000000).toString().padStart(6, '0');
+}
+
+// GitHub API üzerinden dosyayı çeken ve cache sorununu bitiren fonksiyon
+async function dosyaVerisiniCek(dosyaAdi) {
+    const t = new Date().getTime();
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${dosyaAdi}?t=${t}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Base64 formatını çözerken Türkçe karakter sorunu olmaması için düzenlendi
+    return decodeURIComponent(escape(atob(data.content))).trim();
 }
 
 async function islemYap() {
@@ -43,24 +54,19 @@ async function islemYap() {
     const sonucBox = document.getElementById("sonuc");
     const bugun = new Date().toLocaleDateString('tr-TR');
 
-    // ÜYE GİRİŞİ: ŞİFREYİ GÖR
+    sonucBox.style.display = "block";
+    sonucBox.innerHTML = "Sorgulanıyor...";
+
+    // ÜYE GİRİŞİ: ŞİFREYİ GÖSTER
     if (giris === UYE_KODU) {
-        sonucBox.style.display = "block";
-        sonucBox.innerHTML = "Veritabanına bağlanılıyor...";
-        
         try {
-            // DOSYAYA GİRİP ÇIKMA DERDİNİ BİTİREN KISIM (?t=...)
-            const t = new Date().getTime();
-            const res = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/guncel_sifre.txt?t=${t}`);
-            const tarihRes = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/son_guncelleme.txt?t=${t}`);
-            
-            const manuelSifre = (await res.text()).trim();
-            const guncellemeTarihi = (await tarihRes.text()).trim();
+            const manuelSifre = await dosyaVerisiniCek("guncel_sifre.txt");
+            const guncellemeTarihi = await dosyaVerisiniCek("son_guncelleme.txt");
 
             if (guncellemeTarihi === bugun && manuelSifre) {
-                sonucBox.innerHTML = `ERİŞİM KODU (ADMIN):<br><span style="font-size: 24px;">${manuelSifre}</span>`;
+                sonucBox.innerHTML = `BUGÜNÜN ŞİFRESI (ADMIN):<br><b style="font-size: 1.5rem;">${manuelSifre}</b>`;
             } else {
-                sonucBox.innerHTML = `GÜNLÜK OTOMATİK KOD:<br><span style="font-size: 24px;">${otomatikSifreUret()}</span>`;
+                sonucBox.innerHTML = `GÜNLÜK OTOMATİK ŞİFRE:<br><b style="font-size: 1.5rem;">${otomatikSifreUret()}</b>`;
             }
         } catch (e) {
             sonucBox.innerHTML = `OTOMATİK KOD:<br>${otomatikSifreUret()}`;
@@ -70,13 +76,12 @@ async function islemYap() {
     // ADMIN GİRİŞİ: ŞİFREYİ DEĞİŞTİR
     else if (giris === ADMIN_KODU) {
         const yeniSifre = prompt("Yeni 6 haneli şifreyi belirleyin:");
-        if (!yeniSifre) return;
+        if (!yeniSifre) { sonucBox.style.display = "none"; return; }
         
-        const token = prompt("GitHub Token (ghp_...) girin:");
-        if (!token) return;
+        const token = prompt("GitHub Token (ghp_...) yapıştırın:");
+        if (!token) { sonucBox.style.display = "none"; return; }
 
-        sonucBox.style.display = "block";
-        sonucBox.innerText = "GitHub Botu tetikleniyor... Bekleyin.";
+        sonucBox.innerText = "Bot Tetiklendi... 45 saniye içinde güncellenecek.";
 
         const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
@@ -91,13 +96,15 @@ async function islemYap() {
         });
 
         if (response.ok) {
-            alert("İşlem Başarılı! 45-60 saniye içinde şifre herkes için değişecek.");
-            setTimeout(() => { location.reload(); }, 2000); 
+            alert("BAŞARILI! Bot çalışıyor. Birazdan herkes yeni şifreyi görecek.");
+            location.reload();
         } else {
-            alert("Hata! Token yetkisiz veya yanlış.");
+            alert("HATA! Token yetkisiz veya bilgiler hatalı.");
+            sonucBox.style.display = "none";
         }
     } else {
         alert("GEÇERSİZ ANAHTAR!");
+        sonucBox.style.display = "none";
     }
 }
 </script>
